@@ -131,10 +131,13 @@
             if (!response.ok) {
                 throw new Error("Location request failed.");
             }
-            const values = await response.json();
-            if (!Array.isArray(values)) {
+            const responseValues = await response.json();
+            if (!Array.isArray(responseValues)) {
                 throw new Error("The location response was not a list.");
             }
+            const values = responseValues.filter(function (value) {
+                return typeof value === "string" && value.trim().length > 0;
+            });
             if (activeRequests.get(index) !== controller) {
                 return [];
             }
