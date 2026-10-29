@@ -54,6 +54,7 @@
         });
         field.value = selectedValue || "";
         field.disabled = values.length === 0;
+        field.closest(".location-field").hidden = values.length === 0;
     }
 
     function resetField(index) {
@@ -64,6 +65,7 @@
         }
         fields[index].replaceChildren(new Option(placeholders[index], ""));
         fields[index].disabled = true;
+        fields[index].closest(".location-field").hidden = true;
         document.getElementById(helperIds[index]).textContent = helpers[index];
     }
 
@@ -331,7 +333,8 @@
                 behavior: "smooth",
                 block: "start"
             });
-            fields[depth === 4 ? 4 : depth + 1].focus();
+            const nextField = fields[Math.min(depth + 1, 4)];
+            (nextField.disabled ? fields[depth] : nextField).focus();
         } catch (error) {
             setBrowseMessage("Could not open this location. Choose an area below to continue.");
         }
