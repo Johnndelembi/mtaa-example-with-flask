@@ -5,9 +5,15 @@ exports.handler = async function (event) {
         return { statusCode: 405, headers: { Allow: "GET" }, body: "Method not allowed" };
     }
     const parameters = event.queryStringParameters || {};
+    const pathname = event.rawUrl ? new URL(event.rawUrl).pathname : event.path;
+    const hierarchyPath = parameters.path ?? (
+        pathname && pathname !== "/api/search" && !pathname.startsWith("/.netlify/functions/")
+            ? pathname.replace(/^\//, "")
+            : undefined
+    );
     let result;
-    if (Object.hasOwn(parameters, "path")) {
-        const path = parameters.path.split("/").map(decodeURIComponent).join("/");
+    if (hierarchyPath !== undefined) {
+        const path = hierarchyPath.split("/").map(decodeURIComponent).join("/");
         result = children[path] || [];
     } else {
         const query = (parameters.q || "").trim().toLowerCase();
