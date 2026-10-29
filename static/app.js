@@ -35,6 +35,12 @@
     const selectionSummary = document.getElementById("selection-summary");
     const selectedPlace = document.getElementById("selected-place");
     const selectedPath = document.getElementById("selected-path");
+    const selectedPostcode = document.getElementById("selected-postcode");
+    const downloadTree = document.getElementById("download-tree");
+    const searchLevel = document.getElementById("search-level");
+    const downloadDirectory = document.getElementById("download-directory");
+    const previousResults = document.getElementById("previous-results");
+    const nextResults = document.getElementById("next-results");
     const copyFeedback = document.getElementById("copy-feedback");
     const searchInput = document.getElementById("location-search");
     const searchFeedback = document.getElementById("search-feedback");
@@ -45,6 +51,9 @@
     let searchController = null;
     let searchTimer = null;
     let matchingLocations = [];
+    let detailsController = null;
+    let currentPostcode = "";
+    let searchOffset = 0;
 
     function setFieldOptions(index, values, selectedValue) {
         const field = fields[index];
@@ -86,6 +95,36 @@
             }
         });
         breadcrumb.textContent = parts.join(" / ");
+        updateSelectionDetails();
+    }
+
+    async function updateSelectionDetails() {
+        if (detailsController) detailsController.abort();
+        const path = fields.map(function (field) { return field.value; }).filter(Boolean);
+        selectionSummary.hidden = path.length === 0;
+        selectedPostcode.textContent = "";
+        currentPostcode = "";
+        copyFeedback.textContent = "";
+        if (!path.length) return;
+        selectedPlace.textContent = path[path.length - 1];
+        selectedPath.textContent = ["Tanzania"].concat(path).join(" / ");
+        const query = "?path=" + encodeURIComponent(path.join("/"));
+        downloadTree.href = "/api/tree" + query;
+        const controller = new AbortController();
+        detailsController = controller;
+        try {
+            const response = await fetch("/api/details" + query, { signal: controller.signal });
+            if (!response.ok) throw new Error("Details unavailable.");
+            const details = await response.json();
+            if (detailsController !== controller) return;
+            currentPostcode = details.post_code || "";
+            const label = path.length < 3 ? "Postal prefix" : "Ward postcode";
+            selectedPostcode.textContent = currentPostcode ? label + ": " + currentPostcode : "Postcode not listed in the dataset.";
+        } catch (error) {
+            if (error.name !== "AbortError" && detailsController === controller) {
+                selectedPostcode.textContent = "Postcode could not be loaded.";
+            }
+        }
     }
 
     function setBrowseMessage(message) {
@@ -189,25 +228,11 @@
     }
 
     function showSelection() {
-        if (fields.some(function (field) { return !field.value; })) {
-            selectionSummary.hidden = true;
-            return;
-        }
-
-        const location = {
-            name: fields[4].value,
-            region: fields[0].value,
-            district: fields[1].value,
-            ward: fields[2].value,
-            street: fields[3].value
-        };
-        markSelected(4);
-        selectedPlace.textContent = location.name;
-        selectedPath.textContent = locationPath(location, true);
-        selectionSummary.hidden = false;
-        copyFeedback.textContent = "";
-        setBrowseMessage("Place selected. Its full location path is shown below.");
         updateBreadcrumb();
+        if (fields[4].value) {
+            markSelected(4);
+            setBrowseMessage("Place selected. Its full location path is shown below.");
+        }
     }
 
     function renderSearchResults(locations) {
@@ -229,7 +254,7 @@
             type.className = "search-hit-type";
             type.textContent = location.level;
             path.className = "search-hit-path";
-            path.textContent = locationPath(location, false);
+            path.textContent = locationPath(location, false) + (location.post_code ? " · " + (location.level === "Region" || location.level === "District" ? "Postal prefix " : "Postcode ") + location.post_code : "");
             title.append(name, type);
             button.append(title, path);
             item.append(button);
@@ -238,9 +263,9 @@
         searchResults.hidden = locations.length === 0;
     }
 
-    async function searchLocations(query) {
+    async function searchLocations(query, offset = 0) {
         const normalizedQuery = query.trim();
-        if (normalizedQuery.length < 2) {
+        if (normalizedQuery.length < 2 && !searchLevel.value) {
             renderSearchResults([]);
             searchFeedback.textContent = "";
             return;
@@ -254,7 +279,7 @@
         searchFeedback.textContent = "Searching locations...";
 
         try {
-            const response = await fetch("/api/search?q=" + encodeURIComponent(normalizedQuery), {
+            const response = await fetch("/api/search?q=" + encodeURIComponent(normalizedQuery) + "&level=" + encodeURIComponent(searchLevel.value) + "&offset=" + offset + "&limit=9", {
                 headers: { Accept: "application/json" },
                 signal: controller.signal
             });
@@ -265,7 +290,10 @@
             if (controller !== searchController) {
                 return;
             }
-            renderSearchResults(locations);
+            searchOffset = offset;
+            renderSearchResults(locations.slice(0, 8));
+            previousResults.hidden = offset === 0;
+            nextResults.hidden = locations.length < 9;
             searchFeedback.textContent = locations.length
                 ? ""
                 : "No locations match that name. Check the spelling or try another search.";
@@ -397,7 +425,7 @@
 
     searchInput.addEventListener("input", function () {
         window.clearTimeout(searchTimer);
-        if (this.value.trim().length < 2) {
+        if (this.value.trim().length < 2 && !searchLevel.value) {
             renderSearchResults([]);
             searchFeedback.textContent = "";
             if (searchController) {
@@ -408,6 +436,19 @@
         searchTimer = window.setTimeout(function () {
             searchLocations(searchInput.value);
         }, 220);
+    });
+
+    searchLevel.addEventListener("change", function () {
+        window.clearTimeout(searchTimer);
+        downloadDirectory.href = "/api/grouped?level=" + encodeURIComponent(this.value);
+        searchLocations(searchInput.value);
+    });
+
+    previousResults.addEventListener("click", function () {
+        searchLocations(searchInput.value, Math.max(0, searchOffset - 8));
+    });
+    nextResults.addEventListener("click", function () {
+        searchLocations(searchInput.value, searchOffset + 8);
     });
 
     searchResultList.addEventListener("click", function (event) {
@@ -424,7 +465,7 @@
     });
 
     document.getElementById("copy-address").addEventListener("click", async function () {
-        const address = selectedPath.textContent;
+        const address = selectedPath.textContent + (currentPostcode ? " / " + selectedPostcode.textContent : "");
         try {
             await navigator.clipboard.writeText(address);
             copyFeedback.textContent = "Address copied.";

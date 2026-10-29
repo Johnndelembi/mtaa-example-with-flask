@@ -6,8 +6,8 @@
     <meta name="description" content="Explore Tanzania's regions, districts, wards, streets and places.">
     <meta name="theme-color" content="#f4f7f3">
     <title>Mtaa | Find a place in Tanzania</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v=2) }}">
-    <script src="{{ url_for('static', filename='app.js', v=3) }}" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css', v=4) }}">
+    <script src="{{ url_for('static', filename='app.js', v=4) }}" defer></script>
 </head>
 <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -35,24 +35,39 @@
 
             <section class="search-panel" aria-labelledby="search-title">
                 <h2 id="search-title">Start with what you know</h2>
-                <p class="panel-description">Find a place, ward, district or street.</p>
+                <p class="panel-description">Find a location by name or postcode.</p>
                 <form id="search-form" class="search-form" role="search">
                     <label class="sr-only" for="location-search">Search locations in Tanzania</label>
                     <input
                         id="location-search"
                         name="q"
                         type="search"
-                        minlength="2"
                         autocomplete="off"
                         aria-describedby="search-feedback"
-                        placeholder="Search locations"
+                        placeholder="Name or postcode"
                     >
                     <button class="button button-primary" type="submit">Search</button>
                 </form>
+                <div class="search-tools">
+                    <label for="search-level">Location type</label>
+                    <select id="search-level">
+                        <option value="">All locations</option>
+                        <option value="Region">Regions</option>
+                        <option value="District">Districts</option>
+                        <option value="Ward">Wards</option>
+                        <option value="Street">Streets</option>
+                        <option value="Place">Places</option>
+                    </select>
+                    <a id="download-directory" href="/api/grouped" download>Download directory JSON</a>
+                </div>
                 <p class="search-feedback" id="search-feedback" role="status" aria-live="polite"></p>
                 <section class="search-results" id="search-results" aria-label="Search results" hidden>
                     <h3 class="results-heading" id="results-heading">Matching locations</h3>
                     <ul class="search-result-list" id="search-result-list"></ul>
+                    <div class="result-pagination">
+                        <button class="button button-secondary" id="previous-results" type="button" hidden>Previous</button>
+                        <button class="button button-secondary" id="next-results" type="button" hidden>Next results</button>
+                    </div>
                 </section>
             </section>
         </section>
@@ -121,16 +136,18 @@
                 <div class="selection-copy">
                     <h3 id="selected-place"></h3>
                     <p id="selected-path"></p>
+                    <p id="selected-postcode" aria-live="polite"></p>
                 </div>
                 <div class="selection-action">
                     <p class="copy-feedback" id="copy-feedback" role="status" aria-live="polite"></p>
                     <button class="button button-secondary" id="copy-address" type="button">Copy address</button>
+                    <a class="button button-secondary" id="download-tree" download>Download area JSON</a>
                 </div>
             </section>
         </section>
 
         <footer class="site-footer">
-            <p>Location records are provided by the <a href="https://pypi.org/project/mtaa/" target="_blank" rel="noreferrer">mtaa data package</a>.</p>
+            <p>Location records are provided by <a href="https://pypi.org/project/mtaa/" target="_blank" rel="noreferrer">mtaa 1.5 (2021)</a>. Some names and postcodes may be outdated or missing.</p>
             <a class="footer-top" href="#main">Back to top</a>
         </footer>
     </main>

@@ -22,7 +22,7 @@ function loadUI(responseValues) {
         document: { getElementById: element },
         Option: function (text, value) { this.text = text; this.value = value; },
         AbortController,
-        fetch: async () => ({ ok: true, json: async () => responseValues }),
+        fetch: async (url) => ({ ok: true, json: async () => url.startsWith("/api/details") ? { post_code: "16113" } : responseValues }),
     });
     ["regions", "districts", "wards", "streets"].forEach((id, i) => {
         element(id).value = ["Dar-es-salaam", "Ubungo", "Mbezi", "Mbezi luis"][i];
@@ -36,6 +36,9 @@ test("blank place records hide the dropdown and report no places", async () => {
     assert.equal(element("neighborhood").wrapper.hidden, true);
     assert.equal(element("neighborhood").disabled, true);
     assert.equal(element("browse-feedback").textContent, "No places are listed for this area.");
+    assert.equal(element("selection-summary").hidden, false);
+    assert.equal(element("selected-place").textContent, "Mbezi luis");
+    assert.equal(element("selected-postcode").textContent, "Ward postcode: 16113");
 });
 
 test("valid options remain visible and blank entries are not counted", async () => {
